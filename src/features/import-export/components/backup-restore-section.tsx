@@ -148,11 +148,14 @@ export function BackupRestoreSection() {
   const [exportTaskId, setExportTaskId] = useState<string | null>(null);
   const startExport = useStartExport();
   const { data: exportProgress } = useExportProgress(exportTaskId);
+  const exportProgressData = exportProgress?.error
+    ? null
+    : exportProgress?.data;
 
   const isExporting =
     exportTaskId !== null ||
-    exportProgress?.status === "pending" ||
-    exportProgress?.status === "processing";
+    exportProgressData?.status === "pending" ||
+    exportProgressData?.status === "processing";
 
   const handleExport = () => {
     startExport.mutate(
@@ -186,7 +189,28 @@ export function BackupRestoreSection() {
   useEffect(() => {
     if (!exportTaskId || !exportProgress) return;
 
-    const { status, total } = exportProgress;
+    if (exportProgress.error) {
+      const reason = exportProgress.error.reason;
+      switch (reason) {
+        case "TASK_NOT_FOUND":
+          // KV eventual consistency: keep polling
+          return;
+        case "INVALID_PROGRESS_DATA":
+          toast.error("导出失败", {
+            id: EXPORT_TOAST_ID,
+            duration: ms("10s"),
+            description: "导出进度数据异常，请重试",
+          });
+          setExportTaskId(null);
+          return;
+        default: {
+          reason satisfies never;
+          return;
+        }
+      }
+    }
+
+    const { status, total } = exportProgress.data;
 
     if (status === "completed") {
       const currentTaskId = exportTaskId;
@@ -216,11 +240,14 @@ export function BackupRestoreSection() {
   const [importTaskId, setImportTaskId] = useState<string | null>(null);
   const uploadMutation = useUploadForImport();
   const { data: importProgress } = useImportProgress(importTaskId);
+  const importProgressData = importProgress?.error
+    ? null
+    : importProgress?.data;
 
   const isImporting =
     importTaskId !== null ||
-    importProgress?.status === "pending" ||
-    importProgress?.status === "processing";
+    importProgressData?.status === "pending" ||
+    importProgressData?.status === "processing";
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -267,7 +294,28 @@ export function BackupRestoreSection() {
   useEffect(() => {
     if (!importTaskId || !importProgress) return;
 
-    const { status, report } = importProgress;
+    if (importProgress.error) {
+      const reason = importProgress.error.reason;
+      switch (reason) {
+        case "TASK_NOT_FOUND":
+          // KV eventual consistency: keep polling
+          return;
+        case "INVALID_PROGRESS_DATA":
+          toast.error("导入失败", {
+            id: IMPORT_TOAST_ID,
+            duration: ms("10s"),
+            description: "导入进度数据异常，请重试",
+          });
+          setImportTaskId(null);
+          return;
+        default: {
+          reason satisfies never;
+          return;
+        }
+      }
+    }
+
+    const { status, report } = importProgress.data;
 
     if (status === "completed") {
       const succeeded = report?.succeeded ?? [];
