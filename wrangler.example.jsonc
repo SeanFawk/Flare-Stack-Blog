@@ -175,7 +175,7 @@
         }
       ],
       "queues": {
-        "producers": [{ "binding": "QUEUE", "queue": "blog-queue" }]
+        "producers": [{ "binding": "QUEUE", "queue": "flare-stack-blog-queue" }]
       }
     }
   }
